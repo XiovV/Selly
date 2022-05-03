@@ -1,0 +1,22 @@
+package data
+
+const migrateSchema = `
+	CREATE TABLE IF NOT EXISTS friends (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		selly_id TEXT NOT NULL UNIQUE,
+		username TEXT NOT NULL UNIQUE
+	);
+
+	CREATE TABLE IF NOT EXISTS user_info (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		selly_id TEXT NOT NULL UNIQUE,
+		seed TEXT NOT NULL UNIQUE
+	);
+
+	CREATE TABLE IF NOT EXISTS messages (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		selly_id TEXT NOT NULL,
+		sender TEXT NOT NULL,
+		message TEXT NOT NULL
+	);
+`
