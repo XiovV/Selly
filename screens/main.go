@@ -1,13 +1,17 @@
 package screens
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/XiovV/selly-client/data"
+	"github.com/XiovV/selly-client/jwt"
 	"github.com/XiovV/selly-client/ws"
 	"github.com/gdamore/tcell/v2"
 	"github.com/gorilla/websocket"
 	"github.com/rivo/tview"
 	"log"
+	"net/http"
 	"strings"
 )
 
@@ -15,6 +19,7 @@ type Main struct {
 	app              *tview.Application
 	internalTextView *tview.TextView
 	messageInput     *tview.InputField
+	commandBox       *tview.InputField
 	friendsList      *tview.TreeView
 	ws               *websocket.Conn
 	db               *data.Repository
@@ -27,6 +32,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 		app:              app,
 		internalTextView: tview.NewTextView(),
 		messageInput:     tview.NewInputField(),
+		commandBox:       tview.NewInputField(),
 		friendsList:      tview.NewTreeView(),
 		db:               db,
 	}
@@ -38,7 +44,9 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 
 	main.localUser = &localUser
 
-	connection := ws.NewWebsocketClient(localUser.SellyID)
+	main.validateJWT(localUser)
+
+	connection := ws.NewWebsocketClient(localUser.JWT)
 	main.ws = connection
 
 	go main.listenForMessages(connection)
@@ -46,9 +54,13 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	main.internalTextView.SetDynamicColors(true).
 		SetRegions(true).
 		SetWordWrap(true).SetBorder(true)
+	main.internalTextView.ScrollToEnd()
 
 	main.messageInput.SetDoneFunc(main.sendMessage).SetPlaceholder("Message")
-	main.messageInput.SetBorder(true)
+	main.messageInput.SetBorder(false)
+
+	main.commandBox.SetDoneFunc(main.handleCommand).SetPlaceholder("Enter a command")
+	main.commandBox.SetBorder(false)
 
 	main.friendsList.SetRoot(tview.NewTreeNode("")).SetTopLevel(1)
 	main.friendsList.SetSelectedFunc(main.onFriendSelect)
@@ -58,6 +70,164 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	main.loadFriends()
 
 	return main
+}
+
+func (s *Main) handleCommand(key tcell.Key) {
+	if key == tcell.KeyEnter && s.commandBox.GetText() != "" {
+		command := strings.Split(s.commandBox.GetText(), " ")
+
+		if len(command) < 2 {
+			s.commandBox.SetText("")
+			s.commandBox.SetPlaceholder("invalid amount of arguments")
+			return
+		}
+
+		switch command[0] {
+		case "/add":
+			err := s.addFriend(command)
+			if err != nil {
+				s.commandBox.SetText("")
+				s.commandBox.SetPlaceholder(err.Error())
+				return
+			}
+		case "/remove":
+			err := s.removeFriend(command)
+			if err != nil {
+				s.commandBox.SetText("")
+				s.commandBox.SetPlaceholder(err.Error())
+				return
+			}
+		}
+
+		s.commandBox.SetPlaceholder("Enter a command")
+		s.commandBox.SetText("")
+	}
+}
+
+func (s *Main) removeFriend(command []string) error {
+	if len(command) > 2 {
+		return errors.New(fmt.Sprintf(" remove command needs exactly 1 argument, got: %d", len(command)-1))
+	}
+
+	username := command[1]
+
+	if len(username) < 1 {
+		return errors.New(" username needs to be at least one character long")
+	}
+
+	for _, friend := range s.friendsList.GetRoot().GetChildren() {
+		if strings.Contains(friend.GetText(), username) {
+			s.friendsList.GetRoot().RemoveChild(friend)
+
+			err := s.db.DeleteFriendByUsername(username)
+			if err != nil {
+				panic(err)
+			}
+
+			return nil
+		}
+	}
+
+	return errors.New(" couldn't find that user")
+}
+
+func (s *Main) addFriend(command []string) error {
+	if len(command) > 3 {
+		return errors.New(fmt.Sprintf(" add command needs exactly 2 arguments, got: %d", len(command)-1))
+	}
+
+	sellyID := command[1]
+	username := command[2]
+
+	if len(sellyID) < 64 {
+		return errors.New(fmt.Sprintf(" Selly ID needs to be 64 characters long, got: %d", len(sellyID)-1))
+	}
+
+	if len(username) < 1 {
+		return errors.New(" username needs to be at least one character long")
+	}
+
+	node := tview.NewTreeNode(fmt.Sprintf("%s (%s)", username, s.truncateId(sellyID)))
+	s.friendsList.GetRoot().AddChild(node)
+
+	err := s.db.AddFriend(sellyID, username)
+	if err != nil {
+		panic(err)
+	}
+
+	return nil
+}
+
+func (s *Main) validateJWT(localUser data.LocalUser) {
+	if localUser.JWT == "" {
+		token := s.getNewToken(localUser.SellyID)
+
+		err := s.db.UpdateJWT(token)
+		if err != nil {
+			panic(err)
+		}
+
+		s.localUser.JWT = token
+
+		return
+	}
+
+	if jwt.IsTokenExpired(localUser.JWT) {
+		token := s.refreshToken(localUser.JWT)
+
+		err := s.db.UpdateJWT(token)
+		if err != nil {
+			panic(err)
+		}
+
+		s.localUser.JWT = token
+	}
+
+}
+
+func (s *Main) getNewToken(sellyId string) string {
+	req, err := http.NewRequest(http.MethodGet, "http://localhost:8082/v1/users/token?id="+sellyId, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	client := &http.Client{}
+	r, err := client.Do(req)
+
+	var response struct {
+		AccessToken string `json:"access_token"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&response)
+	if err != nil {
+		panic(err)
+	}
+
+	return response.AccessToken
+}
+
+func (s *Main) refreshToken(jwt string) string {
+	req, err := http.NewRequest(http.MethodGet, "http://localhost:8082/v1/users/refresh-token", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jwt))
+	client := &http.Client{}
+	r, err := client.Do(req)
+
+	var response struct {
+		AccessToken string `json:"access_token"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&response)
+	if err != nil {
+		panic(err)
+	}
+
+	return response.AccessToken
 }
 
 func (s *Main) loadFriends() {
@@ -122,14 +292,14 @@ func (s *Main) listenForMessages(conn *websocket.Conn) {
 	for {
 		err := conn.ReadJSON(&message)
 		if err != nil {
-			fmt.Println("error receiving:", err)
+			log.Fatalf("websocket error: %s", err)
 		}
 
 		friendData, _ := s.db.GetFriendDataBySellyID(message.Sender)
 
 		err = s.db.StoreMessage(s.selectedFriend.SellyID, message)
 		if err != nil {
-			log.Fatal("couldn't store message: %s", err)
+			log.Fatalf("couldn't store message: %s", err)
 		}
 
 		message.Sender = friendData.Username
@@ -141,6 +311,8 @@ func (s *Main) listenForMessages(conn *websocket.Conn) {
 
 func (s *Main) sendMessage(key tcell.Key) {
 	if key == tcell.KeyEnter && s.messageInput.GetText() != "" {
+		s.validateJWT(*s.localUser)
+
 		message := data.Message{
 			Sender:   s.localUser.SellyID,
 			Receiver: s.selectedFriend.SellyID,
@@ -169,5 +341,6 @@ func (s *Main) Render() tview.Primitive {
 		AddItem(s.friendsList, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(s.internalTextView, 0, 3, false).
-			AddItem(s.messageInput, 5, 1, false), 0, 2, false)
+			AddItem(s.messageInput, 2, 1, false).
+			AddItem(s.commandBox, 2, 1, false), 0, 2, false)
 }

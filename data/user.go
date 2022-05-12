@@ -34,6 +34,15 @@ func (r *Repository) StoreLocalUserInfo(id, seed string) error {
 	return nil
 }
 
+func (r *Repository) UpdateJWT(jwt string) error {
+	_, err := r.db.Exec("UPDATE user_info SET jwt = $1", jwt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *Repository) GetFriends() ([]Friend, error) {
 	friends := []Friend{}
 

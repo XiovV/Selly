@@ -7,7 +7,7 @@ import (
 )
 
 func NewWebsocketClient(username string) *websocket.Conn {
-	socketUrl := fmt.Sprintf("ws://localhost:8080/chat?username=%s", username)
+	socketUrl := fmt.Sprintf("ws://localhost:8080/chat?jwt=%s", username)
 	conn, _, err := websocket.DefaultDialer.Dial(socketUrl, nil)
 	if err != nil {
 		log.Fatal("Error connecting to Websocket Server:", err)
