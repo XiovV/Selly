@@ -2,7 +2,6 @@ package screens
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/XiovV/selly-client/data"
 	"github.com/XiovV/selly-client/jwt"
@@ -65,7 +64,8 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	main.friendsList.SetBorder(true)
 	main.friendsList.SetTitle("Friends")
 
-	main.addFriendBtn.SetSelectedFunc(main.handleAddFriend)
+	main.addFriendBtn.SetSelectedFunc(main.showAddFriendScreen)
+	main.deleteFriendBtn.SetSelectedFunc(main.showDeleteFriendScreen)
 
 	main.addFriendBtn.SetBorder(true)
 	main.deleteFriendBtn.SetBorder(true)
@@ -91,21 +91,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	return main
 }
 
-func (s *Main) handleAddFriend() {
-	s.showAddFriendScreen()
-}
-
-func (s *Main) removeFriend(command []string) error {
-	if len(command) > 2 {
-		return errors.New(fmt.Sprintf("remove command needs exactly 1 argument, got: %d", len(command)-1))
-	}
-
-	username := command[1]
-
-	if len(username) < 1 {
-		return errors.New("username needs to be at least one character long")
-	}
-
+func (s *Main) deleteFriend(username string) {
 	for _, friend := range s.friendsList.GetRoot().GetChildren() {
 		if strings.Contains(friend.GetText(), username) {
 			s.friendsList.GetRoot().RemoveChild(friend)
@@ -114,12 +100,23 @@ func (s *Main) removeFriend(command []string) error {
 			if err != nil {
 				panic(err)
 			}
-
-			return nil
 		}
 	}
+}
 
-	return errors.New(" couldn't find that user")
+func (s *Main) showDeleteFriendScreen() {
+	modal := tview.NewModal().
+		SetText(fmt.Sprintf("Are you sure that you would like to remove %s from your friend's list?", s.selectedFriend.Username)).
+		AddButtons([]string{"Yes", "No"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Yes" {
+				s.deleteFriend(s.selectedFriend.Username)
+			}
+
+			s.app.SetRoot(s.Render(), true)
+		})
+
+	s.app.SetRoot(modal, true)
 }
 
 func (s *Main) showAddFriendScreen() {
