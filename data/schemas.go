@@ -20,4 +20,6 @@ const migrateSchema = `
 		sender TEXT NOT NULL,
 		message TEXT NOT NULL
 	);
+
+	
 `
