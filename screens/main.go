@@ -92,7 +92,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 }
 
 func (s *Main) handleAddFriend() {
-	ShowAddFriendScreen(s.app, s)
+	s.showAddFriendScreen()
 }
 
 func (s *Main) removeFriend(command []string) error {
@@ -120,6 +120,45 @@ func (s *Main) removeFriend(command []string) error {
 	}
 
 	return errors.New(" couldn't find that user")
+}
+
+func (s *Main) showAddFriendScreen() {
+	form := tview.NewForm().
+		AddInputField("Custom username", "", 0, nil, nil).
+		AddInputField("SellyID", "", 64, nil, nil)
+
+	form.AddButton("Save", func() {
+		usernameField := form.GetFormItem(0).(*tview.InputField)
+		sellyIDField := form.GetFormItem(1).(*tview.InputField)
+
+		if len(usernameField.GetText()) < 1 {
+			usernameField.SetText("")
+			usernameField.SetPlaceholder("username must be at least 1 character long")
+		}
+
+		if len(usernameField.GetText()) > 64 {
+			usernameField.SetText("")
+			usernameField.SetPlaceholder("username must be at most 64 characters long")
+		}
+
+		if len(sellyIDField.GetText()) != 64 {
+			sellyIDField.SetText("")
+			sellyIDField.SetPlaceholder("Selly ID must be exactly 64 characters long")
+		}
+
+		if len(usernameField.GetText()) < 64 && len(sellyIDField.GetText()) == 64 {
+			s.addFriend(usernameField.GetText(), sellyIDField.GetText())
+
+			s.app.SetRoot(s.Render(), true)
+		}
+	})
+
+	form.AddButton("Cancel", func() {
+		s.app.SetRoot(s.Render(), true)
+	})
+
+	form.SetBorder(true).SetTitle("Add Friend").SetTitleAlign(tview.AlignLeft)
+	s.app.SetRoot(form, true)
 }
 
 func (s *Main) addFriend(username, sellyID string) {
