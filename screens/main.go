@@ -27,7 +27,7 @@ type Main struct {
 	addFriendBtn     *tview.Button
 	deleteFriendBtn  *tview.Button
 	editFriendBtn    *tview.Button
-	myInformationBtn *tview.Button
+	myDetailsButton  *tview.Button
 }
 
 func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
@@ -40,7 +40,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 		addFriendBtn:     tview.NewButton("Add Friend"),
 		deleteFriendBtn:  tview.NewButton("Delete Friend"),
 		editFriendBtn:    tview.NewButton("Edit Friend"),
-		myInformationBtn: tview.NewButton("My Information"),
+		myDetailsButton:  tview.NewButton("My Details"),
 		db:               db,
 	}
 
@@ -70,7 +70,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	main.addFriendBtn.SetBorder(true)
 	main.deleteFriendBtn.SetBorder(true)
 	main.editFriendBtn.SetBorder(true)
-	main.myInformationBtn.SetBorder(true)
+	main.myDetailsButton.SetBorder(true)
 
 	main.loadFriends()
 
@@ -370,5 +370,5 @@ func (s *Main) Render() tview.Primitive {
 				AddItem(s.addFriendBtn, 0, 1, false).
 				AddItem(s.deleteFriendBtn, 0, 1, false).
 				AddItem(s.editFriendBtn, 0, 1, false).
-				AddItem(s.myInformationBtn, 0, 1, false), 0, 1, false), 0, 2, false)
+				AddItem(s.myDetailsButton, 0, 1, false), 0, 1, false), 0, 2, false)
 }
