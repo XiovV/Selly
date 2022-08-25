@@ -156,10 +156,13 @@ func (s *Main) showMyDetailsScreen() {
 }
 
 func (s *Main) exportAccount() {
-	acc := struct {
+	var acc struct {
 		ID   string `json:"id"`
 		Seed string `json:"seed"`
-	}{ID: s.localUser.SellyID, Seed: s.localUser.Seed}
+	}
+
+	acc.ID = s.localUser.SellyID
+	acc.Seed = s.localUser.Seed
 
 	file, _ := json.MarshalIndent(acc, "", " ")
 	ioutil.WriteFile("account.json", file, 0644)

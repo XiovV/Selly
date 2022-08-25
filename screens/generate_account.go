@@ -49,10 +49,13 @@ func (s *GenerateAccount) Render() tview.Primitive {
 }
 
 func (s *GenerateAccount) exportAccount(id, seed string) {
-	acc := struct {
+	var acc struct {
 		ID   string `json:"id"`
 		Seed string `json:"seed"`
-	}{ID: id, Seed: seed}
+	}
+
+	acc.ID = id
+	acc.Seed = seed
 
 	file, _ := json.MarshalIndent(acc, "", " ")
 	ioutil.WriteFile("account.json", file, 0644)
