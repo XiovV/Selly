@@ -9,6 +9,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/gorilla/websocket"
 	"github.com/rivo/tview"
+	"golang.design/x/clipboard"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -66,6 +68,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 
 	main.addFriendBtn.SetSelectedFunc(main.showAddFriendScreen)
 	main.deleteFriendBtn.SetSelectedFunc(main.showDeleteFriendScreen)
+	main.myDetailsButton.SetSelectedFunc(main.showMyDetailsScreen)
 
 	main.addFriendBtn.SetBorder(true)
 	main.deleteFriendBtn.SetBorder(true)
@@ -117,6 +120,49 @@ func (s *Main) showDeleteFriendScreen() {
 		})
 
 	s.app.SetRoot(modal, true)
+}
+
+func (s *Main) showMyDetailsScreen() {
+	modal := tview.NewModal().SetText(fmt.Sprintf("Your SellyID is: %s\n\n Your seed is: %s", s.localUser.SellyID, s.localUser.Seed)).
+		AddButtons([]string{"Copy SellyID", "Copy Seed", "Export Account", "Back"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Back" {
+				s.app.SetRoot(s.Render(), true)
+			}
+
+			err := clipboard.Init()
+			if err != nil {
+				//TODO: handle this panic gracefully
+				panic(err)
+			}
+
+			if buttonLabel == "Copy SellyID" {
+				clipboard.Write(clipboard.FmtText, []byte(s.localUser.SellyID))
+			}
+
+			if buttonLabel == "Copy Seed" {
+				clipboard.Write(clipboard.FmtText, []byte(s.localUser.Seed))
+			}
+
+			if buttonLabel == "Export Account" {
+				s.exportAccount()
+
+			}
+
+			s.app.SetRoot(s.Render(), true)
+		})
+
+	s.app.SetRoot(modal, true)
+}
+
+func (s *Main) exportAccount() {
+	acc := struct {
+		ID   string `json:"id"`
+		Seed string `json:"seed"`
+	}{ID: s.localUser.SellyID, Seed: s.localUser.Seed}
+
+	file, _ := json.MarshalIndent(acc, "", " ")
+	ioutil.WriteFile("account.json", file, 0644)
 }
 
 func (s *Main) showAddFriendScreen() {
