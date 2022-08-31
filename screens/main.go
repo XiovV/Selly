@@ -68,6 +68,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 
 	main.addFriendBtn.SetSelectedFunc(main.showAddFriendScreen)
 	main.deleteFriendBtn.SetSelectedFunc(main.showDeleteFriendScreen)
+	main.editFriendBtn.SetSelectedFunc(main.showEditFriendScreen)
 	main.myDetailsButton.SetSelectedFunc(main.showMyDetailsScreen)
 
 	main.addFriendBtn.SetBorder(true)
@@ -96,13 +97,18 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 
 func (s *Main) deleteFriend(username string) {
 	for _, friend := range s.friendsList.GetRoot().GetChildren() {
-		if strings.Contains(friend.GetText(), username) {
+		friendSplit := strings.Split(friend.GetText(), " ")
+		friendUsername := friendSplit[0]
+
+		if friendUsername == username {
 			s.friendsList.GetRoot().RemoveChild(friend)
 
 			err := s.db.DeleteFriendByUsername(username)
 			if err != nil {
 				panic(err)
 			}
+
+			return
 		}
 	}
 }
@@ -146,7 +152,6 @@ func (s *Main) showMyDetailsScreen() {
 
 			if buttonLabel == "Export Account" {
 				s.exportAccount()
-
 			}
 
 			s.app.SetRoot(s.Render(), true)
@@ -168,6 +173,61 @@ func (s *Main) exportAccount() {
 	ioutil.WriteFile("account.json", file, 0644)
 }
 
+func (s *Main) showEditFriendScreen() {
+	if s.selectedFriend != nil {
+		form := tview.NewForm().
+			AddInputField("Custom username", s.selectedFriend.Username, 0, nil, nil).
+			AddInputField("SellyID", s.selectedFriend.SellyID, 64, nil, nil)
+
+		form.AddButton("Save", func() {
+			usernameField := form.GetFormItem(0).(*tview.InputField)
+			sellyIDField := form.GetFormItem(1).(*tview.InputField)
+
+			isUsernameValid, err := validateUsernameInput(usernameField)
+			if !isUsernameValid {
+				usernameField.SetText("")
+				usernameField.SetPlaceholder(err)
+			}
+
+			isSellyIDValid, err := validateSellyID(sellyIDField)
+			if !isSellyIDValid {
+				sellyIDField.SetText("")
+				sellyIDField.SetPlaceholder(err)
+			}
+
+			if isUsernameValid && isSellyIDValid {
+				s.editFriend(usernameField.GetText(), sellyIDField.GetText())
+
+				s.app.SetRoot(s.Render(), true)
+			}
+		})
+
+		form.AddButton("Cancel", func() {
+			s.app.SetRoot(s.Render(), true)
+		})
+
+		form.SetBorder(true).SetTitle("Edit Friend").SetTitleAlign(tview.AlignLeft)
+		s.app.SetRoot(form, true)
+	}
+}
+
+func (s *Main) editFriend(username, sellyID string) {
+	for _, friend := range s.friendsList.GetRoot().GetChildren() {
+		friendSplit := strings.Split(friend.GetText(), " ")
+		friendUsername := friendSplit[0]
+
+		if friendUsername == s.selectedFriend.Username {
+			friend.SetText(fmt.Sprintf("%s (%s)", username, s.truncateId(sellyID)))
+			break
+		}
+	}
+
+	err := s.db.EditFriend(s.selectedFriend.SellyID, sellyID, username)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (s *Main) showAddFriendScreen() {
 	form := tview.NewForm().
 		AddInputField("Custom username", "", 0, nil, nil).
@@ -177,22 +237,19 @@ func (s *Main) showAddFriendScreen() {
 		usernameField := form.GetFormItem(0).(*tview.InputField)
 		sellyIDField := form.GetFormItem(1).(*tview.InputField)
 
-		if len(usernameField.GetText()) < 1 {
+		isUsernameValid, err := validateUsernameInput(usernameField)
+		if !isUsernameValid {
 			usernameField.SetText("")
-			usernameField.SetPlaceholder("username must be at least 1 character long")
+			usernameField.SetPlaceholder(err)
 		}
 
-		if len(usernameField.GetText()) > 64 {
-			usernameField.SetText("")
-			usernameField.SetPlaceholder("username must be at most 64 characters long")
-		}
-
-		if len(sellyIDField.GetText()) != 64 {
+		isSellyIDValid, err := validateSellyID(sellyIDField)
+		if !isSellyIDValid {
 			sellyIDField.SetText("")
-			sellyIDField.SetPlaceholder("Selly ID must be exactly 64 characters long")
+			sellyIDField.SetPlaceholder(err)
 		}
 
-		if len(usernameField.GetText()) < 64 && len(sellyIDField.GetText()) == 64 {
+		if isUsernameValid && isSellyIDValid {
 			s.addFriend(usernameField.GetText(), sellyIDField.GetText())
 
 			s.app.SetRoot(s.Render(), true)
