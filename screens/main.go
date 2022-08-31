@@ -96,20 +96,13 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 }
 
 func (s *Main) deleteFriend(username string) {
-	for _, friend := range s.friendsList.GetRoot().GetChildren() {
-		friendSplit := strings.Split(friend.GetText(), " ")
-		friendUsername := friendSplit[0]
+	friend := s.findFriendInTreeNode(username)
 
-		if friendUsername == username {
-			s.friendsList.GetRoot().RemoveChild(friend)
+	s.friendsList.GetRoot().RemoveChild(friend)
 
-			err := s.db.DeleteFriendByUsername(username)
-			if err != nil {
-				panic(err)
-			}
-
-			return
-		}
+	err := s.db.DeleteFriendByUsername(username)
+	if err != nil {
+		panic(err)
 	}
 }
 
@@ -211,16 +204,22 @@ func (s *Main) showEditFriendScreen() {
 	}
 }
 
-func (s *Main) editFriend(username, sellyID string) {
+func (s *Main) findFriendInTreeNode(username string) *tview.TreeNode {
 	for _, friend := range s.friendsList.GetRoot().GetChildren() {
 		friendSplit := strings.Split(friend.GetText(), " ")
 		friendUsername := friendSplit[0]
 
-		if friendUsername == s.selectedFriend.Username {
-			friend.SetText(fmt.Sprintf("%s (%s)", username, s.truncateId(sellyID)))
-			break
+		if friendUsername == username {
+			return friend
 		}
 	}
+
+	return nil
+}
+
+func (s *Main) editFriend(username, sellyID string) {
+	friend := s.findFriendInTreeNode(s.selectedFriend.Username)
+	friend.SetText(fmt.Sprintf("%s (%s)", username, s.truncateId(sellyID)))
 
 	err := s.db.EditFriend(s.selectedFriend.SellyID, sellyID, username)
 	if err != nil {
