@@ -17,19 +17,20 @@ import (
 )
 
 type Main struct {
-	app              *tview.Application
-	internalTextView *tview.TextView
-	messageInput     *tview.InputField
-	commandBox       *tview.InputField
-	friendsList      *tview.TreeView
-	ws               *websocket.Conn
-	db               *data.Repository
-	localUser        *data.LocalUser
-	selectedFriend   *data.Friend
-	addFriendBtn     *tview.Button
-	deleteFriendBtn  *tview.Button
-	editFriendBtn    *tview.Button
-	myDetailsButton  *tview.Button
+	app               *tview.Application
+	internalTextView  *tview.TextView
+	messageInput      *tview.InputField
+	commandBox        *tview.InputField
+	friendsList       *tview.TreeView
+	ws                *websocket.Conn
+	db                *data.Repository
+	localUser         *data.LocalUser
+	selectedFriend    *data.Friend
+	addFriendBtn      *tview.Button
+	deleteFriendBtn   *tview.Button
+	editFriendBtn     *tview.Button
+	myDetailsButton   *tview.Button
+	isConnectionAlive bool
 }
 
 func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
@@ -83,14 +84,15 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 		panic(err)
 	}
 
-	connection, err := ws.NewWebsocketClient(localUser.JWT)
-	if err != nil {
-		panic(err)
-	}
+	connection, _ := ws.NewWebsocketClient(localUser.JWT)
 
 	main.ws = connection
 
-	go main.listenForMessages(connection)
+	if connection != nil {
+		main.isConnectionAlive = true
+	}
+
+	go main.listenForMessages()
 
 	return main
 }
@@ -415,31 +417,54 @@ func (s *Main) loadMessages() {
 	}
 }
 
-func (s *Main) listenForMessages(conn *websocket.Conn) {
+func (s *Main) listenForMessages() {
 	var message data.Message
 
-	for {
-		err := conn.ReadJSON(&message)
-		if err != nil {
-			log.Fatalf("websocket error: %s", err)
+	if !s.isConnectionAlive {
+		conn, _ := ws.NewWebsocketClient(s.localUser.JWT)
+		if conn == nil {
+			s.listenForMessages()
+			return
 		}
 
-		friendData, _ := s.db.GetFriendDataBySellyID(message.Sender)
-
-		err = s.db.StoreMessage(s.selectedFriend.SellyID, message)
-		if err != nil {
-			log.Fatalf("couldn't store message: %s", err)
-		}
-
-		message.Sender = friendData.Username
-		s.addMessage(message)
-
+		s.ws = conn
+		s.isConnectionAlive = true
+		s.addSuccessMessage("connection restored")
 		s.app.Draw()
+	}
+
+	for {
+		err := s.ws.ReadJSON(&message)
+		if err != nil {
+			if s.isConnectionAlive {
+				s.addErrorMessage("connection lost")
+				s.app.Draw()
+			}
+
+			s.isConnectionAlive = false
+			s.listenForMessages()
+			return
+		}
+
+		if s.isConnectionAlive {
+			friendData, _ := s.db.GetFriendDataBySellyID(message.Sender)
+
+			err = s.db.StoreMessage(s.selectedFriend.SellyID, message)
+			if err != nil {
+				log.Fatalf("couldn't store message: %s", err)
+			}
+
+			message.Sender = friendData.Username
+			s.addMessage(message)
+
+			s.app.Draw()
+		}
+
 	}
 }
 
 func (s *Main) sendMessage(key tcell.Key) {
-	if key == tcell.KeyEnter && s.messageInput.GetText() != "" {
+	if key == tcell.KeyEnter && s.messageInput.GetText() != "" && s.isConnectionAlive {
 		s.validateJWT(*s.localUser)
 
 		message := data.Message{
@@ -461,8 +486,16 @@ func (s *Main) sendMessage(key tcell.Key) {
 	}
 }
 
+func (s *Main) addErrorMessage(message string) {
+	fmt.Fprintf(s.internalTextView, "[#ffffff]Error: %s%s\n", "[#ff0000]", message)
+}
+
+func (s *Main) addSuccessMessage(message string) {
+	fmt.Fprintf(s.internalTextView, "[#ffffff]Success: %s%s\n", "[#00ff00]", message)
+}
+
 func (s *Main) addMessage(message data.Message) {
-	fmt.Fprintf(s.internalTextView, "%s: %s\n", message.Sender, message.Message)
+	fmt.Fprintf(s.internalTextView, "[#ffffff]%s: %s\n", message.Sender, message.Message)
 }
 
 func (s *Main) Render() tview.Primitive {

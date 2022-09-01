@@ -14,3 +14,12 @@ func NewWebsocketClient(username string) (*websocket.Conn, error) {
 
 	return conn, nil
 }
+
+func Ping() bool {
+	_, _, err := websocket.DefaultDialer.Dial("ws://localhost:8080/health", nil)
+	if err != nil {
+		return false
+	}
+
+	return true
+}
