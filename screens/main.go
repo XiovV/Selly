@@ -79,7 +79,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 
 	main.loadFriends()
 
-	err = main.validateJWT(localUser)
+	err = main.validateJWT()
 	if err != nil {
 		panic(err)
 	}
@@ -275,9 +275,9 @@ func (s *Main) addFriend(username, sellyID string) {
 	}
 }
 
-func (s *Main) validateJWT(localUser data.LocalUser) error {
-	if localUser.JWT == "" {
-		token, err := s.getNewToken(localUser.SellyID)
+func (s *Main) validateJWT() error {
+	if s.localUser.JWT == "" {
+		token, err := s.getNewToken(s.localUser.SellyID)
 		if err != nil {
 			return err
 		}
@@ -292,8 +292,8 @@ func (s *Main) validateJWT(localUser data.LocalUser) error {
 		return nil
 	}
 
-	if jwt.IsTokenExpired(localUser.JWT) {
-		token, err := s.refreshToken(localUser.JWT)
+	if jwt.IsExpired(s.localUser.JWT) {
+		token, err := s.refreshToken(s.localUser.JWT)
 		if err != nil {
 			return err
 		}
@@ -421,6 +421,7 @@ func (s *Main) listenForMessages() {
 	var message data.Message
 
 	if !s.isConnectionAlive {
+		s.validateJWT()
 		conn, _ := ws.NewWebsocketClient(s.localUser.JWT)
 		if conn == nil {
 			s.listenForMessages()
@@ -465,7 +466,7 @@ func (s *Main) listenForMessages() {
 
 func (s *Main) sendMessage(key tcell.Key) {
 	if key == tcell.KeyEnter && s.messageInput.GetText() != "" && s.isConnectionAlive {
-		s.validateJWT(*s.localUser)
+		s.validateJWT()
 
 		message := data.Message{
 			Sender:   s.localUser.SellyID,

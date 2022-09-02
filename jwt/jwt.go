@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func IsTokenExpired(token string) bool {
+func IsExpired(token string) bool {
 	tok, _ := jwt.Parse(token, nil)
 
 	return getExp(tok) < time.Now().Unix()
