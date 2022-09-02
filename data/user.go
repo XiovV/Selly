@@ -1,5 +1,11 @@
 package data
 
+import (
+	"crypto/sha256"
+	"fmt"
+	"strings"
+)
+
 type LocalUser struct {
 	ID      int
 	SellyID string `db:"selly_id"`
@@ -11,6 +17,13 @@ type Friend struct {
 	ID       string
 	SellyID  string `db:"selly_id"`
 	Username string `db:"username"`
+}
+
+func (u *LocalUser) GetHashedSeed() string {
+	seed := strings.ReplaceAll(u.Seed, ", ", "")
+
+	hashedSeed := sha256.Sum256([]byte(seed))
+	return fmt.Sprintf("%x", hashedSeed[:])
 }
 
 func (r *Repository) GetLocalUserInfo() (LocalUser, error) {

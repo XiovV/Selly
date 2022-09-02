@@ -71,9 +71,11 @@ func (s *GenerateAccount) generateNewID() (string, []string) {
 		seed = append(seed, s.seedWords[randomIndex])
 	}
 
-	hash := sha256.Sum256([]byte(strings.Join(seed, "")))
+	hashedSeed := sha256.Sum256([]byte(strings.Join(seed, "")))
 
-	return fmt.Sprintf("%x", hash[:]), seed
+	sellyId := sha256.Sum256([]byte(fmt.Sprintf("%x", hashedSeed[:])))
+
+	return fmt.Sprintf("%x", sellyId[:]), seed
 }
 
 func (s *GenerateAccount) persistNewID(id, seed string) error {

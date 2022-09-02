@@ -277,7 +277,9 @@ func (s *Main) addFriend(username, sellyID string) {
 
 func (s *Main) validateJWT() error {
 	if s.localUser.JWT == "" {
-		token, err := s.getNewToken(s.localUser.SellyID)
+		hashedSeed := s.localUser.GetHashedSeed()
+
+		token, err := s.getNewToken(hashedSeed)
 		if err != nil {
 			return err
 		}

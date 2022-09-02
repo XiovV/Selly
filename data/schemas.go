@@ -11,7 +11,7 @@ const migrateSchema = `
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		selly_id TEXT NOT NULL UNIQUE,
 		seed TEXT NOT NULL UNIQUE,
-		jwt TEXT NOT NULL UNIQUE
+		jwt TEXT DEFAULT "" UNIQUE
 	);
 
 	CREATE TABLE IF NOT EXISTS messages (
@@ -20,6 +20,4 @@ const migrateSchema = `
 		sender TEXT NOT NULL,
 		message TEXT NOT NULL
 	);
-
-	
 `
