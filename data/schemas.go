@@ -18,6 +18,7 @@ const migrateSchema = `
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		selly_id TEXT NOT NULL,
 		sender TEXT NOT NULL,
-		message TEXT NOT NULL
+		message TEXT NOT NULL,
+		FOREIGN KEY("selly_id") REFERENCES "friends"("selly_id") ON UPDATE CASCADE
 	);
 `
