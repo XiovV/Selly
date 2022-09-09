@@ -452,17 +452,18 @@ func (s *Main) listenForMessages() {
 		if s.isConnectionAlive {
 			friendData, _ := s.db.GetFriendDataBySellyID(message.Sender)
 
-			err = s.db.StoreMessage(s.selectedFriend.SellyID, message)
+			err = s.db.StoreMessage(message.Sender, message)
 			if err != nil {
 				log.Fatalf("couldn't store message: %s", err)
 			}
 
-			message.Sender = friendData.Username
-			s.addMessage(message)
+			if message.Sender == s.selectedFriend.SellyID {
+				message.Sender = friendData.Username
+				s.addMessage(message)
 
-			s.app.Draw()
+				s.app.Draw()
+			}
 		}
-
 	}
 }
 
