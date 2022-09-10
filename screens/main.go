@@ -16,6 +16,10 @@ import (
 	"strings"
 )
 
+const (
+	unreadMessageColor = "[#fccb00]"
+)
+
 type Main struct {
 	app               *tview.Application
 	internalTextView  *tview.TextView
@@ -380,7 +384,9 @@ func (s *Main) truncateId(id string) string {
 }
 
 func (s *Main) onFriendSelect(node *tview.TreeNode) {
-	selectedUsername := node.GetText()
+	selectedUsername := strings.ReplaceAll(node.GetText(), unreadMessageColor, "")
+
+	node.SetText(selectedUsername)
 
 	userParts := strings.Split(selectedUsername, " ")
 
@@ -462,6 +468,12 @@ func (s *Main) listenForMessages() {
 				s.addMessage(message)
 
 				s.app.Draw()
+			} else {
+				friend := s.findFriendInTreeNode(friendData.Username)
+				friendText := friend.GetText()
+
+				friend.SetText(unreadMessageColor + friendText)
+				s.app.Draw()
 			}
 		}
 	}
@@ -491,11 +503,11 @@ func (s *Main) sendMessage(key tcell.Key) {
 }
 
 func (s *Main) addErrorMessage(message string) {
-	fmt.Fprintf(s.internalTextView, "[#ffffff]Error: %s%s\n", "[#ff0000]", message)
+	fmt.Fprintf(s.internalTextView, "[#ffffff]Error: [#ff0000]%s\n", message)
 }
 
 func (s *Main) addSuccessMessage(message string) {
-	fmt.Fprintf(s.internalTextView, "[#ffffff]Success: %s%s\n", "[#00ff00]", message)
+	fmt.Fprintf(s.internalTextView, "[#ffffff]Success:[#00ff00] %s\n", message)
 }
 
 func (s *Main) addMessage(message data.Message) {

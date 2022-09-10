@@ -9,6 +9,36 @@ func (r *Repository) AddFriend(sellyId, username string) error {
 	return nil
 }
 
+func (r *Repository) GetFriends() ([]Friend, error) {
+	friends := []Friend{}
+
+	if err := r.db.Select(&friends, "SELECT * FROM friends"); err != nil {
+		return friends, err
+	}
+
+	return friends, nil
+}
+
+func (r *Repository) GetFriendDataByUsername(username string) (Friend, error) {
+	var friend Friend
+
+	if err := r.db.Get(&friend, "SELECT * FROM friends WHERE username = ?", username); err != nil {
+		return Friend{}, err
+	}
+
+	return friend, nil
+}
+
+func (r *Repository) GetFriendDataBySellyID(sellyId string) (Friend, error) {
+	var friend Friend
+
+	if err := r.db.Get(&friend, "SELECT * FROM friends WHERE selly_id = ?", sellyId); err != nil {
+		return Friend{}, err
+	}
+
+	return friend, nil
+}
+
 func (r *Repository) EditFriend(sellyId, newSellyId, username string) error {
 	_, err := r.db.Exec("UPDATE friends SET selly_id = $1, username = $2 WHERE selly_id = $3", newSellyId, username, sellyId)
 

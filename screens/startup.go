@@ -171,4 +171,5 @@ func (s *Startup) Render() tview.Primitive {
 				s.showRestoreAccountModal()
 			}
 		}), false, true)
+
 }
