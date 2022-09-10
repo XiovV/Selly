@@ -384,6 +384,7 @@ func (s *Main) truncateId(id string) string {
 }
 
 func (s *Main) onFriendSelect(node *tview.TreeNode) {
+	// removing the unread message hex color from the string in case it exists as it will mess up fetching friend data form the db
 	selectedUsername := strings.ReplaceAll(node.GetText(), unreadMessageColor, "")
 
 	node.SetText(selectedUsername)
