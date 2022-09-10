@@ -38,10 +38,10 @@ func (s *GenerateAccount) Render() tview.Primitive {
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			switch buttonLabel {
 			case "Next":
-				s.persistNewID(id, seedStr)
+				s.persistID(id, seedStr)
 				s.app.SetRoot(NewMainScreen(s.app, s.db).Render(), true)
 			case "Export":
-				s.persistNewID(id, seedStr)
+				s.persistID(id, seedStr)
 				s.exportAccount(id, strings.Join(seed, ", "))
 				s.app.SetRoot(NewMainScreen(s.app, s.db).Render(), true)
 			}
@@ -78,6 +78,14 @@ func (s *GenerateAccount) generateNewID() (string, []string) {
 	return fmt.Sprintf("%x", sellyId[:]), seed
 }
 
-func (s *GenerateAccount) persistNewID(id, seed string) error {
+func (s *GenerateAccount) generateIDFromSeed(seed []string) string {
+	hashedSeed := sha256.Sum256([]byte(strings.Join(seed, "")))
+
+	sellyId := sha256.Sum256([]byte(fmt.Sprintf("%x", hashedSeed[:])))
+
+	return fmt.Sprintf("%x", sellyId[:])
+}
+
+func (s *GenerateAccount) persistID(id, seed string) error {
 	return s.db.StoreLocalUserInfo(id, seed)
 }

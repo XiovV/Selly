@@ -2,6 +2,7 @@ package screens
 
 import (
 	"github.com/XiovV/selly-client/data"
+	"github.com/XiovV/selly-client/ws"
 	"github.com/rivo/tview"
 )
 
@@ -34,13 +35,13 @@ func (a *App) showConnectionFailedMessage() tview.Primitive {
 }
 
 func (a *App) Start() tview.Primitive {
-	//if a.isAccountSetUp() {
-	//	if !ws.Ping() {
-	//		return a.showConnectionFailedMessage()
-	//	}
-	//
-	//	return NewMainScreen(a.app, a.db).Render()
-	//}
+	if a.isAccountSetUp() {
+		if !ws.Ping() {
+			return a.showConnectionFailedMessage()
+		}
+
+		return NewMainScreen(a.app, a.db).Render()
+	}
 
 	return NewStartupScreen(a.app, a.db).Render()
 }

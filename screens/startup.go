@@ -1,10 +1,15 @@
 package screens
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"github.com/XiovV/selly-client/data"
 	"github.com/rivo/tview"
 	"strings"
+)
+
+const (
+	seedLength = 5
 )
 
 type Startup struct {
@@ -33,22 +38,24 @@ func (s *Startup) showManualAccountRestoreForm() {
 	seedInput.SetPlaceholder("enter your seed, words must be comma separated")
 
 	form.AddButton("Restore", func() {
-		if len(seedInput.GetText()) == 0 {
-			seedInput.SetText("")
-			seedInput.SetPlaceholder("input must not be empty")
-		}
+		containsComma := strings.Contains(seedInput.GetText(), ", ")
 
-		if !strings.Contains(seedInput.GetText(), ", ") {
+		if !containsComma {
 			seedInput.SetText("")
 			seedInput.SetPlaceholder("words must be comma separated")
 		}
 
 		seed := strings.Split(seedInput.GetText(), ", ")
 
-		if len(seed) != 5 {
+		if len(seed) != seedLength && containsComma {
 			seedInput.SetText("")
-			seedInput.SetPlaceholder(fmt.Sprintf("the seed must be 5 words, got: %d", len(seed)))
+			seedInput.SetPlaceholder(fmt.Sprintf("the seed must be %d words, got: %d", seedLength, len(seed)))
 		}
+
+		id := s.generateIDFromSeed(seed)
+
+		s.db.StoreLocalUserInfo(id, seedInput.GetText())
+		s.app.SetRoot(NewMainScreen(s.app, s.db).Render(), true)
 	})
 
 	form.AddButton("Cancel", func() {
@@ -56,6 +63,14 @@ func (s *Startup) showManualAccountRestoreForm() {
 	})
 
 	s.app.SetRoot(form, true)
+}
+
+func (s *Startup) generateIDFromSeed(seed []string) string {
+	hashedSeed := sha256.Sum256([]byte(strings.Join(seed, "")))
+
+	sellyId := sha256.Sum256([]byte(fmt.Sprintf("%x", hashedSeed[:])))
+
+	return fmt.Sprintf("%x", sellyId[:])
 }
 
 func (s *Startup) showRestoreAccountModal() {
