@@ -474,9 +474,25 @@ func (s *Main) listenForMessages() {
 				friendText := friend.GetText()
 
 				friend.SetText(unreadMessageColor + friendText)
+				s.moveFriendToTop(friend)
+
 				s.app.Draw()
 			}
 		}
+	}
+}
+
+func (s *Main) moveFriendToTop(friend *tview.TreeNode) {
+	s.friendsList.GetRoot().RemoveChild(friend)
+
+	oldList := s.friendsList.GetRoot().GetChildren()
+
+	s.friendsList.GetRoot().ClearChildren()
+
+	s.friendsList.GetRoot().AddChild(friend)
+
+	for _, node := range oldList {
+		s.friendsList.GetRoot().AddChild(node)
 	}
 }
 
