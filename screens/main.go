@@ -81,7 +81,8 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	main.editFriendBtn.SetBorder(true)
 	main.myDetailsButton.SetBorder(true)
 
-	main.loadFriends()
+	main.loadFriendsList()
+	main.loadFirstFriend()
 
 	err = main.validateJWT()
 	if err != nil {
@@ -367,7 +368,15 @@ func (s *Main) refreshToken(jwt string) (string, error) {
 	return response.AccessToken, nil
 }
 
-func (s *Main) loadFriends() {
+func (s *Main) loadFirstFriend() {
+	firstFriend := s.friendsList.GetRoot().GetChildren()[0]
+
+	s.friendsList.SetCurrentNode(firstFriend)
+
+	s.onFriendSelect(firstFriend)
+}
+
+func (s *Main) loadFriendsList() {
 	friends, err := s.db.GetFriends()
 	if err != nil {
 		log.Fatalf("couldn't fetch friends: %s", err)
