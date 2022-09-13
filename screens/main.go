@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/XiovV/selly-client/data"
+	"github.com/XiovV/selly-client/friendslist"
 	"github.com/XiovV/selly-client/jwt"
 	"github.com/XiovV/selly-client/ws"
 	"github.com/gdamore/tcell/v2"
@@ -25,7 +26,7 @@ type Main struct {
 	internalTextView  *tview.TextView
 	messageInput      *tview.InputField
 	commandBox        *tview.InputField
-	friendsList       *tview.TreeView
+	friendsList       *friendslist.List
 	ws                *websocket.Conn
 	db                *data.Repository
 	localUser         *data.LocalUser
@@ -37,13 +38,37 @@ type Main struct {
 	isConnectionAlive bool
 }
 
+type TreeNodeText struct {
+	username       string
+	sellyId        string
+	unreadMessages int
+}
+
+func NewTreeNodeText(username, sellyId string, unreadMessage int) TreeNodeText {
+	return TreeNodeText{
+		username:       username,
+		sellyId:        sellyId,
+		unreadMessages: unreadMessage,
+	}
+}
+
+func (t *TreeNodeText) String() string {
+	str := fmt.Sprintf("%s (%s)", t.username, truncateId(t.sellyId))
+
+	if t.unreadMessages > 0 {
+		str += fmt.Sprintf(" %d", t.unreadMessages)
+	}
+
+	return str
+}
+
 func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	main := &Main{
 		app:              app,
 		internalTextView: tview.NewTextView(),
 		messageInput:     tview.NewInputField(),
 		commandBox:       tview.NewInputField(),
-		friendsList:      tview.NewTreeView(),
+		friendsList:      friendslist.New(),
 		addFriendBtn:     tview.NewButton("Add Friend"),
 		deleteFriendBtn:  tview.NewButton("Delete Friend"),
 		editFriendBtn:    tview.NewButton("Edit Friend"),
@@ -66,10 +91,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	main.messageInput.SetDoneFunc(main.sendMessage).SetPlaceholder("Message")
 	main.messageInput.SetBorder(true)
 
-	main.friendsList.SetRoot(tview.NewTreeNode("")).SetTopLevel(1)
 	main.friendsList.SetSelectedFunc(main.onFriendSelect)
-	main.friendsList.SetBorder(true)
-	main.friendsList.SetTitle("Friends")
 
 	main.addFriendBtn.SetSelectedFunc(main.showAddFriendScreen)
 	main.deleteFriendBtn.SetSelectedFunc(main.showDeleteFriendScreen)
@@ -103,9 +125,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 }
 
 func (s *Main) deleteFriend(username string) {
-	friend := s.findFriendInTreeNode(username)
-
-	s.friendsList.GetRoot().RemoveChild(friend)
+	s.friendsList.RemoveFriend(username)
 
 	err := s.db.DeleteFriendByUsername(username)
 	if err != nil {
@@ -211,22 +231,8 @@ func (s *Main) showEditFriendScreen() {
 	}
 }
 
-func (s *Main) findFriendInTreeNode(username string) *tview.TreeNode {
-	for _, friend := range s.friendsList.GetRoot().GetChildren() {
-		friendSplit := strings.Split(friend.GetText(), " ")
-		friendUsername := friendSplit[0]
-
-		if friendUsername == username {
-			return friend
-		}
-	}
-
-	return nil
-}
-
 func (s *Main) editFriend(username, sellyID string) {
-	friend := s.findFriendInTreeNode(s.selectedFriend.Username)
-	friend.SetText(fmt.Sprintf("%s (%s)", username, s.truncateId(sellyID)))
+	s.friendsList.EditFriendText(s.selectedFriend.Username, username, sellyID)
 
 	err := s.db.EditFriend(s.selectedFriend.SellyID, sellyID, username)
 	if err != nil {
@@ -271,8 +277,7 @@ func (s *Main) showAddFriendScreen() {
 }
 
 func (s *Main) addFriend(username, sellyID string) {
-	node := tview.NewTreeNode(fmt.Sprintf("%s (%s)", username, s.truncateId(sellyID)))
-	s.friendsList.GetRoot().AddChild(node)
+	s.friendsList.AddFriend(username, sellyID)
 
 	err := s.db.AddFriend(sellyID, username)
 	if err != nil {
@@ -369,9 +374,9 @@ func (s *Main) refreshToken(jwt string) (string, error) {
 }
 
 func (s *Main) loadFirstFriend() {
-	firstFriend := s.friendsList.GetRoot().GetChildren()[0]
+	firstFriend := s.friendsList.GetFirst()
 
-	s.friendsList.SetCurrentNode(firstFriend)
+	s.friendsList.SetCurrentFriend(firstFriend)
 
 	s.onFriendSelect(firstFriend)
 }
@@ -383,12 +388,11 @@ func (s *Main) loadFriendsList() {
 	}
 
 	for _, friend := range friends {
-		node := tview.NewTreeNode(fmt.Sprintf("%s (%s)", friend.Username, s.truncateId(friend.SellyID)))
-		s.friendsList.GetRoot().AddChild(node)
+		s.friendsList.AddFriend(friend.Username, friend.SellyID)
 	}
 }
 
-func (s *Main) truncateId(id string) string {
+func truncateId(id string) string {
 	return fmt.Sprintf("%s...%s", id[:7], id[len(id)-7:])
 }
 
@@ -479,29 +483,11 @@ func (s *Main) listenForMessages() {
 
 				s.app.Draw()
 			} else {
-				friend := s.findFriendInTreeNode(friendData.Username)
-				friendText := friend.GetText()
-
-				friend.SetText(unreadMessageColor + friendText)
-				s.moveFriendToTop(friend)
+				s.friendsList.MoveFriendToTop(friendData.Username)
 
 				s.app.Draw()
 			}
 		}
-	}
-}
-
-func (s *Main) moveFriendToTop(friend *tview.TreeNode) {
-	s.friendsList.GetRoot().RemoveChild(friend)
-
-	oldList := s.friendsList.GetRoot().GetChildren()
-
-	s.friendsList.GetRoot().ClearChildren()
-
-	s.friendsList.GetRoot().AddChild(friend)
-
-	for _, node := range oldList {
-		s.friendsList.GetRoot().AddChild(node)
 	}
 }
 
@@ -542,7 +528,7 @@ func (s *Main) addMessage(message data.Message) {
 
 func (s *Main) Render() tview.Primitive {
 	return tview.NewFlex().
-		AddItem(s.friendsList, 0, 1, false).
+		AddItem(s.friendsList.GetTreeView(), 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(s.internalTextView, 0, 8, false).
 			AddItem(s.messageInput, 3, 1, false).
