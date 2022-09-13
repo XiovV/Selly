@@ -17,10 +17,6 @@ import (
 	"strings"
 )
 
-const (
-	unreadMessageColor = "[#fccb00]"
-)
-
 type Main struct {
 	app               *tview.Application
 	internalTextView  *tview.TextView
@@ -369,12 +365,9 @@ func (s *Main) loadFriendsList() {
 }
 
 func (s *Main) onFriendSelect(node *tview.TreeNode) {
-	// removing the unread message hex color from the string in case it exists as it will mess up fetching friend data form the db
-	selectedFriendText := strings.ReplaceAll(node.GetText(), unreadMessageColor, "")
-
 	s.friendsList.SanitizeNode(node)
 
-	userParts := strings.Split(selectedFriendText, " ")
+	userParts := strings.Split(node.GetText(), " ")
 
 	friendData, err := s.db.GetFriendDataByUsername(userParts[0])
 	if err != nil {

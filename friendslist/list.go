@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+const (
+	unreadMessageColor = "[#fccb00]"
+)
+
 type List struct {
 	treeView *tview.TreeView
 }
@@ -42,7 +46,7 @@ func (f *List) EditFriendText(oldUsername, newUsername, sellyId string) {
 }
 
 func (f *List) SanitizeNode(node *tview.TreeNode) {
-	removedColor := strings.ReplaceAll(node.GetText(), "[#fccb00]", "")
+	removedColor := strings.ReplaceAll(node.GetText(), unreadMessageColor, "")
 
 	parsed := parseText(removedColor)
 	parsed.SetUnreadMessagesCounter(0)
@@ -58,7 +62,7 @@ func (f *List) IncrementUnreadMessages(username string) {
 	parsedText := parseText(friendText)
 	parsedText.IncrementUnreadMessages()
 
-	friend.SetText("[#fccb00]" + parsedText.String())
+	friend.SetText(unreadMessageColor + parsedText.String())
 	f.moveNodeToTop(friend)
 }
 
@@ -87,7 +91,7 @@ func (f *List) SetCurrentFriend(node *tview.TreeNode) {
 func (f *List) findFriendInTreeNode(username string) *tview.TreeNode {
 	for _, friend := range f.treeView.GetRoot().GetChildren() {
 		friendSplit := strings.Split(friend.GetText(), " ")
-		friendUsername := strings.ReplaceAll(friendSplit[0], "[#fccb00]", "")
+		friendUsername := strings.ReplaceAll(friendSplit[0], unreadMessageColor, "")
 
 		if friendUsername == username {
 			return friend
