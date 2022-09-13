@@ -50,7 +50,7 @@ func (f *List) SanitizeNode(node *tview.TreeNode) {
 	node.SetText(parsed.String())
 }
 
-func (f *List) AddUnreadMessage(username string) {
+func (f *List) IncrementUnreadMessages(username string) {
 	friend := f.findFriendInTreeNode(username)
 
 	friendText := friend.GetText()

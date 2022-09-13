@@ -455,7 +455,7 @@ func (s *Main) listenForMessages() {
 
 				s.app.Draw()
 			} else {
-				s.friendsList.AddUnreadMessage(friendData.Username)
+				s.friendsList.IncrementUnreadMessages(friendData.Username)
 
 				s.app.Draw()
 			}
