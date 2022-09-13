@@ -38,30 +38,6 @@ type Main struct {
 	isConnectionAlive bool
 }
 
-type TreeNodeText struct {
-	username       string
-	sellyId        string
-	unreadMessages int
-}
-
-func NewTreeNodeText(username, sellyId string, unreadMessage int) TreeNodeText {
-	return TreeNodeText{
-		username:       username,
-		sellyId:        sellyId,
-		unreadMessages: unreadMessage,
-	}
-}
-
-func (t *TreeNodeText) String() string {
-	str := fmt.Sprintf("%s (%s)", t.username, truncateId(t.sellyId))
-
-	if t.unreadMessages > 0 {
-		str += fmt.Sprintf(" %d", t.unreadMessages)
-	}
-
-	return str
-}
-
 func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	main := &Main{
 		app:              app,
@@ -392,17 +368,13 @@ func (s *Main) loadFriendsList() {
 	}
 }
 
-func truncateId(id string) string {
-	return fmt.Sprintf("%s...%s", id[:7], id[len(id)-7:])
-}
-
 func (s *Main) onFriendSelect(node *tview.TreeNode) {
 	// removing the unread message hex color from the string in case it exists as it will mess up fetching friend data form the db
-	selectedUsername := strings.ReplaceAll(node.GetText(), unreadMessageColor, "")
+	selectedFriendText := strings.ReplaceAll(node.GetText(), unreadMessageColor, "")
 
-	node.SetText(selectedUsername)
+	s.friendsList.SanitizeNode(node)
 
-	userParts := strings.Split(selectedUsername, " ")
+	userParts := strings.Split(selectedFriendText, " ")
 
 	friendData, err := s.db.GetFriendDataByUsername(userParts[0])
 	if err != nil {
@@ -483,7 +455,7 @@ func (s *Main) listenForMessages() {
 
 				s.app.Draw()
 			} else {
-				s.friendsList.MoveFriendToTop(friendData.Username)
+				s.friendsList.AddUnreadMessage(friendData.Username)
 
 				s.app.Draw()
 			}

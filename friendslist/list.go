@@ -38,14 +38,27 @@ func (f *List) RemoveFriend(username string) {
 
 func (f *List) EditFriendText(oldUsername, newUsername, sellyId string) {
 	node := f.findFriendInTreeNode(oldUsername)
-	node.SetText(fmt.Sprintf("%s (%s)", newUsername, f.truncateId(sellyId)))
+	node.SetText(fmt.Sprintf("%s (%s)", newUsername, truncateId(sellyId)))
 }
 
-func (f *List) MoveFriendToTop(username string) {
+func (f *List) SanitizeNode(node *tview.TreeNode) {
+	removedColor := strings.ReplaceAll(node.GetText(), "[#fccb00]", "")
+
+	parsed := parseText(removedColor)
+	parsed.SetUnreadMessagesCounter(0)
+
+	node.SetText(parsed.String())
+}
+
+func (f *List) AddUnreadMessage(username string) {
 	friend := f.findFriendInTreeNode(username)
+
 	friendText := friend.GetText()
 
-	friend.SetText("[#fccb00]" + friendText)
+	parsedText := parseText(friendText)
+	parsedText.IncrementUnreadMessages()
+
+	friend.SetText("[#fccb00]" + parsedText.String())
 	f.moveNodeToTop(friend)
 }
 
@@ -74,7 +87,7 @@ func (f *List) SetCurrentFriend(node *tview.TreeNode) {
 func (f *List) findFriendInTreeNode(username string) *tview.TreeNode {
 	for _, friend := range f.treeView.GetRoot().GetChildren() {
 		friendSplit := strings.Split(friend.GetText(), " ")
-		friendUsername := friendSplit[0]
+		friendUsername := strings.ReplaceAll(friendSplit[0], "[#fccb00]", "")
 
 		if friendUsername == username {
 			return friend
@@ -85,7 +98,7 @@ func (f *List) findFriendInTreeNode(username string) *tview.TreeNode {
 }
 
 func (f *List) AddFriend(username, sellyId string) {
-	node := tview.NewTreeNode(fmt.Sprintf("%s (%s)", username, f.truncateId(sellyId)))
+	node := tview.NewTreeNode(fmt.Sprintf("%s (%s)", username, truncateId(sellyId)))
 	f.addChild(node)
 }
 
@@ -97,6 +110,6 @@ func (f *List) getRoot() *tview.TreeNode {
 	return f.treeView.GetRoot()
 }
 
-func (f *List) truncateId(id string) string {
+func truncateId(id string) string {
 	return fmt.Sprintf("%s...%s", id[:7], id[len(id)-7:])
 }
