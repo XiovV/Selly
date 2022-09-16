@@ -83,6 +83,8 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 		panic(err)
 	}
 
+	main.loadMissedMessages()
+
 	connection, _ := ws.NewWebsocketClient(localUser.JWT)
 
 	main.ws = connection
@@ -94,6 +96,50 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	go main.listenForMessages()
 
 	return main
+}
+
+func (s *Main) loadMissedMessages() {
+	messages := s.getMissedMessages()
+
+	for _, message := range messages {
+		err := s.db.StoreMessage(message.Sender, message)
+		if err != nil {
+			log.Fatalf("couldn't store message: %s", err)
+		}
+
+		if message.Sender == s.selectedFriend.SellyID {
+
+			message.Sender = s.selectedFriend.Username
+			s.addMessage(message)
+		} else {
+			// TODO: consider optimising this
+			friend, _ := s.db.GetFriendDataBySellyID(message.Sender)
+
+			s.friendsList.IncrementUnreadMessages(friend.Username)
+		}
+	}
+}
+
+func (s *Main) getMissedMessages() []data.Message {
+	req, _ := http.NewRequest(http.MethodGet, "http://localhost:8082/v1/users/missed-messages", nil)
+
+	req.Header.Add("Authorization", "Bearer "+s.localUser.JWT)
+
+	client := &http.Client{}
+	r, _ := client.Do(req)
+
+	var response struct {
+		Messages []data.Message `json:"messages"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&response)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return response.Messages
+
 }
 
 func (s *Main) deleteFriend(username string) {
@@ -347,6 +393,10 @@ func (s *Main) refreshToken(jwt string) (string, error) {
 
 func (s *Main) loadFirstFriend() {
 	firstFriend := s.friendsList.GetFirst()
+
+	if firstFriend == nil {
+		return
+	}
 
 	s.friendsList.SetCurrentFriend(firstFriend)
 

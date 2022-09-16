@@ -81,7 +81,13 @@ func (f *List) moveNodeToTop(node *tview.TreeNode) {
 }
 
 func (f *List) GetFirst() *tview.TreeNode {
-	return f.getRoot().GetChildren()[0]
+	children := f.getRoot().GetChildren()
+
+	if len(children) > 0 {
+		return children[0]
+	}
+
+	return nil
 }
 
 func (f *List) SetCurrentFriend(node *tview.TreeNode) {

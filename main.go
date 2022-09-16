@@ -15,6 +15,8 @@ func main() {
 		fileName = "u1.db"
 	} else if os.Args[1] == "2" {
 		fileName = "u2.db"
+	} else if os.Args[1] == "3" {
+		fileName = "u3.db"
 	}
 
 	db := data.NewRepository(fileName)
