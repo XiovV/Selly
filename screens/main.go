@@ -15,6 +15,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Main struct {
@@ -411,6 +412,10 @@ func (s *Main) loadFriendsList() {
 
 	for _, friend := range friends {
 		s.friendsList.AddFriend(friend.Username, friend.SellyID)
+
+		unreadMessagesCount := s.db.GetCountOfUnreadMessages(friend.SellyID)
+		
+		s.friendsList.SetUnreadCounter(friend.Username, unreadMessagesCount)
 	}
 }
 
@@ -428,6 +433,8 @@ func (s *Main) onFriendSelect(node *tview.TreeNode) {
 
 	s.internalTextView.SetTitle(friendData.Username)
 	s.internalTextView.SetText("")
+
+	s.db.SetRead(friendData.SellyID)
 
 	s.loadMessages()
 }
@@ -487,21 +494,32 @@ func (s *Main) listenForMessages() {
 		if s.isConnectionAlive {
 			friendData, _ := s.db.GetFriendDataBySellyID(message.Sender)
 
-			err = s.db.StoreMessage(message.Sender, message)
-			if err != nil {
-				log.Fatalf("couldn't store message: %s", err)
-			}
-
 			if message.Sender == s.selectedFriend.SellyID {
+				message.Read = 1
+
+				err = s.db.StoreMessage(message.Sender, message)
+				if err != nil {
+					log.Fatalf("couldn't store message: %s", err)
+				}
+
 				message.Sender = friendData.Username
+
 				s.addMessage(message)
 
 				s.app.Draw()
 			} else {
+				message.Read = 0
+
+				err = s.db.StoreMessage(message.Sender, message)
+				if err != nil {
+					log.Fatalf("couldn't store message: %s", err)
+				}
+
 				s.friendsList.IncrementUnreadMessages(friendData.Username)
 
 				s.app.Draw()
 			}
+
 		}
 	}
 }
@@ -517,6 +535,9 @@ func (s *Main) sendMessage(key tcell.Key) {
 		}
 
 		s.ws.WriteJSON(message)
+
+		message.DateCrated = time.Now().Unix()
+		message.Read = 1
 
 		err := s.db.StoreMessage(s.selectedFriend.SellyID, message)
 		if err != nil {

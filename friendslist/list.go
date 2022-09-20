@@ -66,6 +66,21 @@ func (f *List) IncrementUnreadMessages(username string) {
 	f.moveNodeToTop(friend)
 }
 
+func (f *List) SetUnreadCounter(username string, counter int) {
+	if counter == 0 {
+		return
+	}
+
+	friend := f.findFriendInTreeNode(username)
+
+	friendText := friend.GetText()
+
+	parsedText := parseText(friendText)
+	parsedText.SetUnreadMessagesCounter(counter)
+
+	friend.SetText(unreadMessageColor + parsedText.String())
+}
+
 func (f *List) moveNodeToTop(node *tview.TreeNode) {
 	f.treeView.GetRoot().RemoveChild(node)
 
