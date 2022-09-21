@@ -14,9 +14,10 @@ type LocalUser struct {
 }
 
 type Friend struct {
-	ID       string
-	SellyID  string `db:"selly_id"`
-	Username string `db:"username"`
+	ID              string
+	SellyID         string `db:"selly_id"`
+	Username        string `db:"username"`
+	LastInteraction int    `db:"last_interaction"`
 }
 
 func (u *LocalUser) GetHashedSeed() string {

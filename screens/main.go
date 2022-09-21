@@ -99,6 +99,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	return main
 }
 
+// TODO: consider optimising this entire method
 func (s *Main) loadMissedMessages() {
 	messages := s.getMissedMessages()
 
@@ -112,11 +113,14 @@ func (s *Main) loadMissedMessages() {
 
 			message.Sender = s.selectedFriend.Username
 			s.addMessage(message)
+
+			s.db.UpdateLastInteraction(s.selectedFriend.SellyID)
 		} else {
-			// TODO: consider optimising this
 			friend, _ := s.db.GetFriendDataBySellyID(message.Sender)
 
 			s.friendsList.IncrementUnreadMessages(friend.Username)
+
+			s.db.UpdateLastInteraction(friend.SellyID)
 		}
 	}
 }
@@ -284,6 +288,8 @@ func (s *Main) showAddFriendScreen() {
 			s.addFriend(usernameField.GetText(), sellyIDField.GetText())
 
 			s.app.SetRoot(s.Render(), true)
+
+			s.db.UpdateLastInteraction(sellyIDField.GetText())
 		}
 	})
 
@@ -405,7 +411,7 @@ func (s *Main) loadFirstFriend() {
 }
 
 func (s *Main) loadFriendsList() {
-	friends, err := s.db.GetFriends()
+	friends, err := s.db.GetFriendsSorted()
 	if err != nil {
 		log.Fatalf("couldn't fetch friends: %s", err)
 	}
@@ -414,7 +420,7 @@ func (s *Main) loadFriendsList() {
 		s.friendsList.AddFriend(friend.Username, friend.SellyID)
 
 		unreadMessagesCount := s.db.GetCountOfUnreadMessages(friend.SellyID)
-		
+
 		s.friendsList.SetUnreadCounter(friend.Username, unreadMessagesCount)
 	}
 }
@@ -520,6 +526,7 @@ func (s *Main) listenForMessages() {
 				s.app.Draw()
 			}
 
+			s.db.UpdateLastInteraction(friendData.SellyID)
 		}
 	}
 }
@@ -547,6 +554,9 @@ func (s *Main) sendMessage(key tcell.Key) {
 		message.Sender = "You"
 		s.addMessage(message)
 		s.messageInput.SetText("")
+
+		s.db.UpdateLastInteraction(s.selectedFriend.SellyID)
+		s.friendsList.MoveToTop(s.selectedFriend.Username)
 	}
 }
 

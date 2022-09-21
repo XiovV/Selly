@@ -95,6 +95,12 @@ func (f *List) moveNodeToTop(node *tview.TreeNode) {
 	}
 }
 
+func (f *List) MoveToTop(username string) {
+	node := f.findFriendInTreeNode(username)
+
+	f.moveNodeToTop(node)
+}
+
 func (f *List) GetFirst() *tview.TreeNode {
 	children := f.getRoot().GetChildren()
 

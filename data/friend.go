@@ -1,12 +1,11 @@
 package data
 
+import "time"
+
 func (r *Repository) AddFriend(sellyId, username string) error {
 	_, err := r.db.Exec("INSERT INTO friends (selly_id, username) VALUES (?, ?)", sellyId, username)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func (r *Repository) GetFriends() ([]Friend, error) {
@@ -19,6 +18,15 @@ func (r *Repository) GetFriends() ([]Friend, error) {
 	return friends, nil
 }
 
+func (r *Repository) GetFriendsSorted() ([]Friend, error) {
+	friends := []Friend{}
+
+	if err := r.db.Unsafe().Select(&friends, "SELECT * FROM friends ORDER BY last_interaction DESC"); err != nil {
+		return friends, err
+	}
+
+	return friends, nil
+}
 func (r *Repository) GetFriendDataByUsername(username string) (Friend, error) {
 	var friend Friend
 
@@ -37,6 +45,12 @@ func (r *Repository) GetFriendDataBySellyID(sellyId string) (Friend, error) {
 	}
 
 	return friend, nil
+}
+
+func (r *Repository) UpdateLastInteraction(sellyId string) error {
+	_, err := r.db.Exec("UPDATE friends SET last_interaction = $1 WHERE selly_id = $2", time.Now().Unix(), sellyId)
+
+	return err
 }
 
 func (r *Repository) EditFriend(sellyId, newSellyId, username string) error {
@@ -75,9 +89,6 @@ func (r *Repository) EditFriend(sellyId, newSellyId, username string) error {
 
 func (r *Repository) DeleteFriendByUsername(username string) error {
 	_, err := r.db.Exec("DELETE FROM friends WHERE username = ?", username)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
