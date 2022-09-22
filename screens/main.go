@@ -103,7 +103,7 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	return main
 }
 
-type Envelope struct {
+type Payload struct {
 	Type string
 	Msg  interface{}
 }
@@ -494,7 +494,7 @@ func (s *Main) retryConnection() {
 
 func (s *Main) listenForMessages() {
 	var msg json.RawMessage
-	payload := Envelope{Msg: &msg}
+	payload := Payload{Msg: &msg}
 
 	if !s.isConnectionAlive {
 		s.retryConnection()
@@ -572,7 +572,7 @@ func (s *Main) sendMessage(key tcell.Key) {
 			Message:  s.messageInput.GetText(),
 		}
 
-		payload := Envelope{
+		payload := Payload{
 			Type: messageType,
 			Msg:  message,
 		}
