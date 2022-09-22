@@ -18,6 +18,10 @@ import (
 	"time"
 )
 
+const (
+	messageType = "message"
+)
+
 type Main struct {
 	app               *tview.Application
 	internalTextView  *tview.TextView
@@ -97,6 +101,11 @@ func NewMainScreen(app *tview.Application, db *data.Repository) *Main {
 	go main.listenForMessages()
 
 	return main
+}
+
+type Envelope struct {
+	Type string
+	Msg  interface{}
 }
 
 // TODO: consider optimising this entire method
@@ -467,25 +476,32 @@ func (s *Main) loadMessages() {
 	}
 }
 
+func (s *Main) retryConnection() {
+	time.Sleep(1 * time.Second)
+
+	s.validateJWT()
+	conn, _ := ws.NewWebsocketClient(s.localUser.JWT)
+	if conn == nil {
+		s.listenForMessages()
+		return
+	}
+
+	s.ws = conn
+	s.isConnectionAlive = true
+	s.addSuccessMessage("connection restored")
+	s.app.Draw()
+}
+
 func (s *Main) listenForMessages() {
-	var message data.Message
+	var msg json.RawMessage
+	payload := Envelope{Msg: &msg}
 
 	if !s.isConnectionAlive {
-		s.validateJWT()
-		conn, _ := ws.NewWebsocketClient(s.localUser.JWT)
-		if conn == nil {
-			s.listenForMessages()
-			return
-		}
-
-		s.ws = conn
-		s.isConnectionAlive = true
-		s.addSuccessMessage("connection restored")
-		s.app.Draw()
+		s.retryConnection()
 	}
 
 	for {
-		err := s.ws.ReadJSON(&message)
+		err := s.ws.ReadJSON(&payload)
 		if err != nil {
 			if s.isConnectionAlive {
 				s.addErrorMessage("connection lost")
@@ -498,37 +514,52 @@ func (s *Main) listenForMessages() {
 		}
 
 		if s.isConnectionAlive {
-			friendData, _ := s.db.GetFriendDataBySellyID(message.Sender)
-
-			if message.Sender == s.selectedFriend.SellyID {
-				message.Read = 1
-
-				err = s.db.StoreMessage(message.Sender, message)
-				if err != nil {
-					log.Fatalf("couldn't store message: %s", err)
-				}
-
-				message.Sender = friendData.Username
-
-				s.addMessage(message)
-
-				s.app.Draw()
-			} else {
-				message.Read = 0
-
-				err = s.db.StoreMessage(message.Sender, message)
-				if err != nil {
-					log.Fatalf("couldn't store message: %s", err)
-				}
-
-				s.friendsList.IncrementUnreadMessages(friendData.Username)
-
-				s.app.Draw()
+			switch payload.Type {
+			case messageType:
+				s.readIncomingMessage(msg)
+			default:
+				log.Fatal("unknown message type")
 			}
-
-			s.db.UpdateLastInteraction(friendData.SellyID)
 		}
 	}
+}
+
+func (s *Main) readIncomingMessage(msg json.RawMessage) {
+	var message data.Message
+
+	if err := json.Unmarshal(msg, &message); err != nil {
+		log.Fatal(err)
+	}
+
+	friendData, _ := s.db.GetFriendDataBySellyID(message.Sender)
+
+	if message.Sender == s.selectedFriend.SellyID {
+		message.Read = 1
+
+		err := s.db.StoreMessage(message.Sender, message)
+		if err != nil {
+			log.Fatalf("couldn't store message: %s", err)
+		}
+
+		message.Sender = friendData.Username
+
+		s.addMessage(message)
+
+		s.app.Draw()
+	} else {
+		message.Read = 0
+
+		err := s.db.StoreMessage(message.Sender, message)
+		if err != nil {
+			log.Fatalf("couldn't store message: %s", err)
+		}
+
+		s.friendsList.IncrementUnreadMessages(friendData.Username)
+
+		s.app.Draw()
+	}
+
+	s.db.UpdateLastInteraction(friendData.SellyID)
 }
 
 func (s *Main) sendMessage(key tcell.Key) {
@@ -541,7 +572,12 @@ func (s *Main) sendMessage(key tcell.Key) {
 			Message:  s.messageInput.GetText(),
 		}
 
-		s.ws.WriteJSON(message)
+		payload := Envelope{
+			Type: messageType,
+			Msg:  message,
+		}
+
+		s.ws.WriteJSON(payload)
 
 		message.DateCrated = time.Now().Unix()
 		message.Read = 1
