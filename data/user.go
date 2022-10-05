@@ -7,10 +7,12 @@ import (
 )
 
 type LocalUser struct {
-	ID      int
-	SellyID string `db:"selly_id"`
-	Seed    string `db:"seed"`
-	JWT     string `json:"jwt"`
+	ID         int
+	SellyID    string `db:"selly_id"`
+	Seed       string `db:"seed"`
+	JWT        string `json:"jwt"`
+	PublicKey  string `db:"public_key"`
+	PrivateKey string `db:"private_key"`
 }
 
 type Friend struct {
@@ -18,6 +20,7 @@ type Friend struct {
 	SellyID         string `db:"selly_id"`
 	Username        string `db:"username"`
 	LastInteraction int    `db:"last_interaction"`
+	PublicKey       string `db:"public_key"`
 }
 
 func (u *LocalUser) GetHashedSeed() string {

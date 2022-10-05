@@ -112,20 +112,19 @@ type Payload struct {
 func (s *Main) loadMissedMessages() {
 	messages := s.getMissedMessages()
 
-	for _, message := range messages {
-		err := s.db.StoreMessage(message.Sender, message)
+	for i := len(messages) - 1; i >= 0; i-- {
+		err := s.db.StoreMessage(messages[i].Sender, messages[i])
 		if err != nil {
 			log.Fatalf("couldn't store message: %s", err)
 		}
 
-		if message.Sender == s.selectedFriend.SellyID {
-
-			message.Sender = s.selectedFriend.Username
-			s.addMessage(message)
+		if messages[i].Sender == s.selectedFriend.SellyID {
+			messages[i].Sender = s.selectedFriend.Username
+			s.addMessage(messages[i])
 
 			s.db.UpdateLastInteraction(s.selectedFriend.SellyID)
 		} else {
-			friend, _ := s.db.GetFriendDataBySellyID(message.Sender)
+			friend, _ := s.db.GetFriendDataBySellyID(messages[i].Sender)
 
 			s.friendsList.IncrementUnreadMessages(friend.Username)
 

@@ -4,6 +4,7 @@ import (
 	"github.com/XiovV/selly-client/data"
 	"github.com/XiovV/selly-client/ws"
 	"github.com/rivo/tview"
+	"log"
 )
 
 type App struct {
@@ -49,6 +50,7 @@ func (a *App) Start() tview.Primitive {
 func (a *App) isAccountSetUp() bool {
 	_, err := a.db.GetLocalUserInfo()
 	if err != nil {
+		log.Fatal(err)
 		return false
 	}
 

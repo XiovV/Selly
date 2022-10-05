@@ -21,7 +21,7 @@ func (r *Repository) GetFriends() ([]Friend, error) {
 func (r *Repository) GetFriendsSorted() ([]Friend, error) {
 	friends := []Friend{}
 
-	if err := r.db.Unsafe().Select(&friends, "SELECT * FROM friends ORDER BY last_interaction DESC"); err != nil {
+	if err := r.db.Unsafe().Select(&friends, "SELECT selly_id, username, last_interaction FROM friends ORDER BY last_interaction DESC"); err != nil {
 		return friends, err
 	}
 
@@ -30,7 +30,7 @@ func (r *Repository) GetFriendsSorted() ([]Friend, error) {
 func (r *Repository) GetFriendDataByUsername(username string) (Friend, error) {
 	var friend Friend
 
-	if err := r.db.Get(&friend, "SELECT * FROM friends WHERE username = ?", username); err != nil {
+	if err := r.db.Get(&friend, "SELECT selly_id, username, last_interaction FROM friends WHERE username = ?", username); err != nil {
 		return Friend{}, err
 	}
 
@@ -40,7 +40,7 @@ func (r *Repository) GetFriendDataByUsername(username string) (Friend, error) {
 func (r *Repository) GetFriendDataBySellyID(sellyId string) (Friend, error) {
 	var friend Friend
 
-	if err := r.db.Get(&friend, "SELECT * FROM friends WHERE selly_id = ?", sellyId); err != nil {
+	if err := r.db.Get(&friend, "SELECT selly_id, username, last_interaction FROM friends WHERE selly_id = ?", sellyId); err != nil {
 		return Friend{}, err
 	}
 
