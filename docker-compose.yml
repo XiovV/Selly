@@ -1,0 +1,48 @@
+---
+version: '3'
+services:
+  api:
+    image: xiovv/selly-api:latest
+    container_name: selly-api
+    environment:
+      - REDIS_URL=redis
+      - REDIS_PASS=changethis
+      - PORT=5000
+      - ENV=production
+      - JWT_SECRET=changethis
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis
+
+  server: 
+    image: xiovv/selly-server:latest
+    container_name: selly-server
+    environment:
+      - REDIS_URL=redis
+      - REDIS_PASS=changethis
+      - PORT=5000
+      - ENV=production
+      - AMQP_URL=rabbitmq
+    ports:
+      - "5001:5000"
+    depends_on:
+      - redis
+      - rabbitmq
+
+  redis:
+    image: redis:alpine
+    command: redis-server --requirepass changethis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ~/rabbitmq/data/:/var/lib/rabbitmq
+      - ~/rabbitmq/log/:/var/log/rabbitmq
